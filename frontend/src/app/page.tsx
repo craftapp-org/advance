@@ -8,6 +8,7 @@ const Home = () => {
     e.preventDefault()
     console.log('Button clicked: ', process.env.NEXT_PUBLIC_API_URL)
 
+    
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api`)
       const data = await res.json() 
