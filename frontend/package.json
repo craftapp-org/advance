@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
+    "export": "next export"و
     "start": "next start",
     "lint": "next lint"
   },
