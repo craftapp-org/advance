@@ -1,0 +1,32 @@
+name: Test and Build Frontend
+
+on:
+  push:
+    branches: [ "master" ]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/test-frontend.yml"
+
+  workflow_run:
+    workflows: ["Deploy Infrastructure"]
+    types:
+      - completed
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm install --legacy-peer-deps
+
+      - name: Build application
+        run: |
+          cd frontend
+          npm run build

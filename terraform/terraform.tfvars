@@ -1,0 +1,8 @@
+region = "us-east-1"
+customer_name = "Unknown"
+project = "advance"
+repository_url = "https://github.com/craftapp-org/advance.git"
+branch = "master"
+db_password = "advance_password"
+db_username = "postgres"
+db_name = "advance_db"

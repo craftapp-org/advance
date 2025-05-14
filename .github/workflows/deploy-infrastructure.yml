@@ -1,0 +1,67 @@
+name: Deploy Infrastructure
+on:
+  push:
+    branches: [ "master" ]
+    paths:
+    - 'terraform/**'
+    - '.github/workflows/deploy-infrastructure.yml'
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: "eu-north-1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Terraform Init
+        run: terraform -chdir=terraform init -input=false
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Terraform Plan
+        run: |
+          terraform -chdir=terraform plan \
+            -input=false \
+            -out=tfplan
+        env:
+          TF_VAR_AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          TF_VAR_AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Terraform Apply
+        run: |
+          terraform -chdir=terraform apply \
+            -input=false \
+            tfplan
+        env:
+          TF_VAR_AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          TF_VAR_AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          TF_VAR_website_files_path: ${{ github.workspace }}/website
+          
+      - name: Store Outputs in SSM
+        run: |
+          cd ./terraform
+          # Get raw outputs without quotes
+          S3_BUCKET=$(terraform output s3_bucket_name | grep -oE '".*"' | tr -d '"' | head -1)
+          CF_ID=$(terraform output cloudfront_distribution_id | grep -oE '".*"' | tr -d '"' | head -1)
+          CLOUDFRONT_URL=$(terraform output cloudfront_url | grep -oE '".*"' | tr -d '"' | head -1)
+          APPRUNNER_URL=$(terraform output apprunner_service_url | grep -oE '".*"' | tr -d '"' | head -1)
+
+          echo "Stored S3 Bucket: $S3_BUCKET"
+          echo "Stored CloudFront ID: $CF_ID"
+          aws ssm put-parameter --name "/app/s3-bucket" --value "$S3_BUCKET" --type String --overwrite
+          aws ssm put-parameter --name "/app/cf-id" --value "$CF_ID" --type String --overwrite
+          aws ssm put-parameter --name "/app/cloudfront_url" --value "$CLOUDFRONT_URL" --type String --overwrite
+          aws ssm put-parameter --name "/app/apprunner_url" --value "$APPRUNNER_URL" --type String --overwrite
+          echo "Stored S3 Bucket: $S3_BUCKET"
+          echo "Stored CloudFront ID: $CF_ID"
+          echo "Stored CloudFront URL: $CLOUDFRONT_URL"
+          echo "Stored AppRunner URL: $APPRUNNER_URL"
