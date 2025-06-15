@@ -1,4 +1,4 @@
-region = "us-east-1"
+region = "eu-north-1"
 customer_name = "Unknown"
 project = "advance"
 repository_url = "https://github.com/craftapp-org/advance.git"
