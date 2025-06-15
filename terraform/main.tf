@@ -168,7 +168,7 @@ resource "aws_db_instance" "my_database" {
 
 }
 data "aws_secretsmanager_secret" "existing_credentials" {
-  name = "your/existing/secret/name"  # Replace with your actual secret name
+  name = "prod/aws/credentials"
 }
 
 data "aws_secretsmanager_secret_version" "current_creds" {
@@ -195,7 +195,7 @@ resource "aws_apprunner_service" "backend_service" {
 
       code_configuration {
         configuration_source = "API"
-            code_configuration_values {
+        code_configuration_values {
           runtime        = "PYTHON_311"
           build_command = "chmod +x terraform/build.sh && chmod +x terraform/start.sh && ./terraform/build.sh"
           start_command = "./terraform/start.sh"
@@ -214,19 +214,18 @@ resource "aws_apprunner_service" "backend_service" {
           runtime_environment_secrets = {
             AWS_ACCESS_KEY_ID     = "${data.aws_secretsmanager_secret.existing_credentials.arn}:AWS_ACCESS_KEY_ID::"
             AWS_SECRET_ACCESS_KEY = "${data.aws_secretsmanager_secret.existing_credentials.arn}:AWS_SECRET_ACCESS_KEY::"
+          }
         }
       }
     }
   }
-resource "aws_iam_role_policy_attachment" "apprunner_secrets_access" {
-  role       = aws_apprunner_service.backend_service.instance_configuration[0].instance_role_arn
-  policy_arn = "arn:aws:iam::aws:policy/SecretsManagerReadWrite"  # Or create a custom policy with least privileges
-}
+
   instance_configuration {
     cpu               = "1024"
     memory            = "2048"
   }
-    tags = {
+
+  tags = {
     Name        = "${var.project}-backend-${random_id.bucket_suffix.hex}"
     Project     = var.project
     Environment = "production"
@@ -248,6 +247,10 @@ resource "aws_iam_role_policy_attachment" "apprunner_secrets_access" {
   ]
 }
 
+resource "aws_iam_role_policy_attachment" "apprunner_secrets_access" {
+  role       = aws_apprunner_service.backend_service.instance_configuration[0].instance_role_arn
+  policy_arn = "arn:aws:iam::aws:policy/SecretsManagerReadWrite"
+}
 # Output CloudFront URL and Distribution ID
 output "cloudfront_url" {
   value = aws_cloudfront_distribution.cdn.domain_name
