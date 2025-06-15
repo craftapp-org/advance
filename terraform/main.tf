@@ -1,4 +1,9 @@
 terraform {
+    backend "s3" {
+    bucket         = "craftapp-state-bucket"
+    key            = "backend-bucket/terraform.tfstate"
+    region         = "eu-north-1"
+  }
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -18,18 +23,18 @@ resource "random_id" "bucket_suffix" {
 
 # _____________________Creating s3 bucket___________________
 # Create S3 Bucket for Static Files
-resource "aws_s3_bucket" "frontend_bucket" {
-  bucket = "${var.project}-${var.region}-frontend-${random_id.bucket_suffix.hex}"
+resource "aws_s3_bucket" "s3_bucket" {
+  bucket = "${var.project}-${var.region}-bucket-${random_id.bucket_suffix.hex}"
   force_destroy = true
     tags = {
-    Name        = "${var.project}-frontend-bucket-${random_id.bucket_suffix.hex}"
+    Name        = "${var.project}-bucket-${random_id.bucket_suffix.hex}"
     Project     = var.project
   }
 }
 
 # Modern versioning configuration
-resource "aws_s3_bucket_versioning" "frontend_versioning" {
-  bucket = aws_s3_bucket.frontend_bucket.id
+resource "aws_s3_bucket_versioning" "bucket_versioning" {
+  bucket = aws_s3_bucket.s3_bucket.id
   versioning_configuration {
     status = "Enabled"
   }
@@ -37,7 +42,7 @@ resource "aws_s3_bucket_versioning" "frontend_versioning" {
 
 # Modern website configuration
 resource "aws_s3_bucket_website_configuration" "frontend_website" {
-  bucket = aws_s3_bucket.frontend_bucket.id
+  bucket = aws_s3_bucket.s3_bucket.id
 
   index_document {
     suffix = "index.html"
@@ -50,7 +55,7 @@ resource "aws_s3_bucket_website_configuration" "frontend_website" {
 
 # Modern ACL configuration (private by default)
 resource "aws_s3_bucket_ownership_controls" "frontend_ownership" {
-  bucket = aws_s3_bucket.frontend_bucket.id
+  bucket = aws_s3_bucket.s3_bucket.id
   rule {
     object_ownership = "BucketOwnerEnforced"
   }
@@ -58,7 +63,7 @@ resource "aws_s3_bucket_ownership_controls" "frontend_ownership" {
 
 # Block public access
 resource "aws_s3_bucket_public_access_block" "block_public" {
-  bucket = aws_s3_bucket.frontend_bucket.id
+  bucket = aws_s3_bucket.s3_bucket.id
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
@@ -67,12 +72,12 @@ resource "aws_s3_bucket_public_access_block" "block_public" {
 
 # CloudFront Origin Access Identity (OAI)
 resource "aws_cloudfront_origin_access_identity" "oai" {
-  comment = "OAI for ${aws_s3_bucket.frontend_bucket.bucket}"
+  comment = "OAI for ${aws_s3_bucket.s3_bucket.bucket}"
 }
 
 # S3 Bucket Policy (Allow CloudFront Only)
 resource "aws_s3_bucket_policy" "bucket_policy" {
-  bucket = aws_s3_bucket.frontend_bucket.id
+  bucket = aws_s3_bucket.s3_bucket.id
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -82,17 +87,17 @@ resource "aws_s3_bucket_policy" "bucket_policy" {
           AWS = "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${aws_cloudfront_origin_access_identity.oai.id}"
         },
         Action    = "s3:GetObject",
-        Resource  = "${aws_s3_bucket.frontend_bucket.arn}/*"
+        Resource  = "${aws_s3_bucket.s3_bucket.arn}/*"
       }
     ]
   })
 }
 # _____________________Creating CloudFront Distribution___________________
-# CloudFront Distribution
+
 resource "aws_cloudfront_distribution" "cdn" {
   origin {
-    domain_name = aws_s3_bucket.frontend_bucket.bucket_regional_domain_name
-    origin_id   = "S3-${aws_s3_bucket.frontend_bucket.bucket}"
+    domain_name = aws_s3_bucket.s3_bucket.bucket_regional_domain_name
+    origin_id   = "S3-${aws_s3_bucket.s3_bucket.bucket}"
 
     s3_origin_config {
       origin_access_identity = aws_cloudfront_origin_access_identity.oai.cloudfront_access_identity_path
@@ -105,7 +110,7 @@ resource "aws_cloudfront_distribution" "cdn" {
   default_cache_behavior {
     allowed_methods  = ["GET", "HEAD"]
     cached_methods   = ["GET", "HEAD"]
-    target_origin_id = "S3-${aws_s3_bucket.frontend_bucket.bucket}"
+    target_origin_id = "S3-${aws_s3_bucket.s3_bucket.bucket}"
 
     forwarded_values {
       query_string = false
@@ -130,7 +135,7 @@ resource "aws_cloudfront_distribution" "cdn" {
     cloudfront_default_certificate = true
   }
   depends_on = [
-    aws_s3_bucket.frontend_bucket,
+    aws_s3_bucket.s3_bucket,
   ]
 }
 
@@ -162,6 +167,13 @@ resource "aws_db_instance" "my_database" {
   }
 
 }
+data "aws_secretsmanager_secret" "existing_credentials" {
+  name = "your/existing/secret/name"  # Replace with your actual secret name
+}
+
+data "aws_secretsmanager_secret_version" "current_creds" {
+  secret_id = data.aws_secretsmanager_secret.existing_credentials.id
+}
 
 # _____________________Creating App-runner___________________
 resource "aws_apprunner_service" "backend_service" {
@@ -191,7 +203,7 @@ resource "aws_apprunner_service" "backend_service" {
           runtime_environment_variables = {
             NODE_ENV        = "production"
             FRONTEND_DOMAIN  = aws_cloudfront_distribution.cdn.domain_name
-            S3_BUCKET_NAME  = aws_s3_bucket.frontend_bucket.bucket
+            S3_BUCKET_NAME  = aws_s3_bucket.s3_bucket.bucket
             DB_USER           = aws_db_instance.my_database.username
             DB_PASSWORD       = var.db_password
             DB_HOST           = aws_db_instance.my_database.address
@@ -199,11 +211,17 @@ resource "aws_apprunner_service" "backend_service" {
             DB_PORT           = "5432"
             DB_SSL            = "true" # Always use SSL with public RDS
           }
+          runtime_environment_secrets = {
+            AWS_ACCESS_KEY_ID     = "${data.aws_secretsmanager_secret.existing_credentials.arn}:AWS_ACCESS_KEY_ID::"
+            AWS_SECRET_ACCESS_KEY = "${data.aws_secretsmanager_secret.existing_credentials.arn}:AWS_SECRET_ACCESS_KEY::"
         }
       }
     }
   }
-
+resource "aws_iam_role_policy_attachment" "apprunner_secrets_access" {
+  role       = aws_apprunner_service.backend_service.instance_configuration[0].instance_role_arn
+  policy_arn = "arn:aws:iam::aws:policy/SecretsManagerReadWrite"  # Or create a custom policy with least privileges
+}
   instance_configuration {
     cpu               = "1024"
     memory            = "2048"
@@ -225,7 +243,7 @@ resource "aws_apprunner_service" "backend_service" {
 
   depends_on = [
     aws_cloudfront_distribution.cdn,
-    aws_s3_bucket.frontend_bucket,
+    aws_s3_bucket.s3_bucket,
     aws_db_instance.my_database
   ]
 }
@@ -239,7 +257,7 @@ output "cloudfront_distribution_id" {
   value = aws_cloudfront_distribution.cdn.id
 }
 output "s3_bucket_name" {
-  value = aws_s3_bucket.frontend_bucket.bucket
+  value = aws_s3_bucket.s3_bucket.bucket
 }
 
 output "apprunner_service_url" {
