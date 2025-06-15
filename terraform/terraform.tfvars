@@ -1,6 +1,6 @@
 region = "eu-north-1"
 customer_name = "Unknown"
-project = "advance"
+project = "v2-test-new"
 repository_url = "https://github.com/craftapp-org/advance.git"
 branch = "master"
 db_password = "advance_password"
