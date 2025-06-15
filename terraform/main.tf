@@ -92,6 +92,32 @@ resource "aws_s3_bucket_policy" "bucket_policy" {
     ]
   })
 }
+
+# IAM Policy for Backend Access
+resource "aws_iam_policy" "backend_s3_access" {
+  name        = "${var.project}-backend-s3-access"
+  description = "Allows backend service to access S3 bucket"
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ],
+        Resource = [
+          aws_s3_bucket.s3_bucket.arn,
+          "${aws_s3_bucket.s3_bucket.arn}/*"
+        ]
+      }
+    ]
+  })
+}
 # _____________________Creating CloudFront Distribution___________________
 
 resource "aws_cloudfront_distribution" "cdn" {
