@@ -194,7 +194,7 @@ resource "aws_db_instance" "my_database" {
 
 }
 data "aws_secretsmanager_secret" "existing_credentials" {
-  arn = "arn:aws:secretsmanager:eu-north-1:135808921133:secret:prod/aws/credentials-NjPFkj"
+  arn = "arn:aws:secretsmanager:us-east-1:135808921133:secret:prod/aws/credentials-1czvrt"
 }
 
 data "aws_secretsmanager_secret_version" "current_creds" {
