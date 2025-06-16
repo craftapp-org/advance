@@ -201,7 +201,46 @@ data "aws_secretsmanager_secret_version" "current_creds" {
   secret_id = data.aws_secretsmanager_secret.existing_credentials.id
 }
 
-# _____________________Creating App-runner___________________
+# _____________________Creating IAM Role for AppRunner___________________
+resource "aws_iam_role" "apprunner_execution_role" {
+  name = "${var.project}-apprunner-exec-role-${random_id.bucket_suffix.hex}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action = "sts:AssumeRole",
+        Effect = "Allow",
+        Principal = {
+          Service = "build.apprunner.amazonaws.com"
+        }
+      },
+      {
+        Action = "sts:AssumeRole",
+        Effect = "Allow",
+        Principal = {
+          Service = "tasks.apprunner.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Project = var.project
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "apprunner_secrets_access" {
+  role       = aws_iam_role.apprunner_execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/SecretsManagerReadWrite"
+}
+
+resource "aws_iam_role_policy_attachment" "apprunner_s3_access" {
+  role       = aws_iam_role.apprunner_execution_role.name
+  policy_arn = aws_iam_policy.backend_s3_access.arn
+}
+
+# _____________________Creating AppRunner Service___________________
 resource "aws_apprunner_service" "backend_service" {
   service_name = "${var.project}-backend-${random_id.bucket_suffix.hex}"
 
@@ -235,7 +274,7 @@ resource "aws_apprunner_service" "backend_service" {
             DB_HOST           = aws_db_instance.my_database.address
             DB_NAME           = aws_db_instance.my_database.db_name
             DB_PORT           = "5432"
-            DB_SSL            = "true" # Always use SSL with public RDS
+            DB_SSL            = "true"
           }
           runtime_environment_secrets = {
             AWS_ACCESS_KEY_ID     = "${data.aws_secretsmanager_secret.existing_credentials.arn}:AWS_ACCESS_KEY_ID::"
@@ -249,6 +288,7 @@ resource "aws_apprunner_service" "backend_service" {
   instance_configuration {
     cpu               = "1024"
     memory            = "2048"
+    instance_role_arn = aws_iam_role.apprunner_execution_role.arn  # Explicitly set the IAM role
   }
 
   tags = {
@@ -269,13 +309,10 @@ resource "aws_apprunner_service" "backend_service" {
   depends_on = [
     aws_cloudfront_distribution.cdn,
     aws_s3_bucket.s3_bucket,
-    aws_db_instance.my_database
+    aws_db_instance.my_database,
+    aws_iam_role_policy_attachment.apprunner_secrets_access,
+    aws_iam_role_policy_attachment.apprunner_s3_access
   ]
-}
-
-resource "aws_iam_role_policy_attachment" "apprunner_secrets_access" {
-  role       = aws_apprunner_service.backend_service.instance_configuration[0].instance_role_arn
-  policy_arn = "arn:aws:iam::aws:policy/SecretsManagerReadWrite"
 }
 # Output CloudFront URL and Distribution ID
 output "cloudfront_url" {
