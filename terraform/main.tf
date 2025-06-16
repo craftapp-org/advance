@@ -169,7 +169,7 @@ resource "aws_cloudfront_distribution" "cdn" {
 # Get the default security group for your VPC
 data "aws_security_group" "default" {
   name   = "default"
-  vpc_id = "vpc-0297cd44f118eae2f"  # Replace with your actual VPC ID
+  vpc_id = "vpc-0c14bf237caae25ec"  # Replace with your actual VPC ID
 }
 
 resource "aws_db_instance" "my_database" {
