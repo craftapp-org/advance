@@ -275,6 +275,8 @@ resource "aws_apprunner_service" "backend_service" {
             DB_NAME           = aws_db_instance.my_database.db_name
             DB_PORT           = "5432"
             DB_SSL            = "true"
+            AWS_REGION        = var.region
+            S3_BUCKET_NAME  = aws_s3_bucket.s3_bucket.bucket
           }
           runtime_environment_secrets = {
             AWS_ACCESS_KEY_ID     = "${data.aws_secretsmanager_secret.existing_credentials.arn}:AWS_ACCESS_KEY_ID::"
