@@ -193,12 +193,19 @@ resource "aws_db_instance" "my_database" {
   }
 
 }
-data "aws_secretsmanager_secret" "existing_credentials" {
-  arn = "arn:aws:secretsmanager:us-east-1:135808921133:secret:prod/aws/credentials-1czvrt"
+#data "aws_secretsmanager_secret" "existing_credentials" {
+#  arn = "arn:aws:secretsmanager:us-east-1:135808921133:secret:prod/aws/credentials-1czvrt"
+#}
+
+#data "aws_secretsmanager_secret_version" "current_creds" {
+ # secret_id = data.aws_secretsmanager_secret.existing_credentials.id
+#}
+data "aws_secretsmanager_secret" "access_key_id" {
+  name = "prod/aws/access_key_id"
 }
 
-data "aws_secretsmanager_secret_version" "current_creds" {
-  secret_id = data.aws_secretsmanager_secret.existing_credentials.id
+data "aws_secretsmanager_secret" "secret_access_key" {
+  name = "prod/aws/secret_access_key"
 }
 
 # _____________________Creating IAM Role for AppRunner___________________
@@ -278,10 +285,10 @@ resource "aws_apprunner_service" "backend_service" {
             AWS_REGION        = var.region
             S3_BUCKET_NAME  = aws_s3_bucket.s3_bucket.bucket
           }
-          runtime_environment_secrets = {
-            AWS_ACCESS_KEY_ID     = "${data.aws_secretsmanager_secret.existing_credentials.arn}:AWS_ACCESS_KEY_ID::"
-            AWS_SECRET_ACCESS_KEY = "${data.aws_secretsmanager_secret.existing_credentials.arn}:AWS_SECRET_ACCESS_KEY::"
-          }
+            runtime_environment_secrets = {
+              AWS_ACCESS_KEY_ID     = data.aws_secretsmanager_secret.access_key_id.arn
+              AWS_SECRET_ACCESS_KEY = data.aws_secretsmanager_secret.secret_access_key.arn
+            }
         }
       }
     }
