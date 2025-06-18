@@ -193,6 +193,8 @@ resource "aws_db_instance" "my_database" {
   }
 
 }
+
+# _____________________Data Sources for Secrets___________________
 #data "aws_secretsmanager_secret" "existing_credentials" {
 #  arn = "arn:aws:secretsmanager:us-east-1:135808921133:secret:prod/aws/credentials-1czvrt"
 #}
@@ -208,7 +210,15 @@ data "aws_secretsmanager_secret" "secret_access_key" {
   name = "prod/aws/secret_access_key"
 }
 
-# _____________________Creating IAM Role for AppRunner___________________
+data "aws_secretsmanager_secret_version" "access_key_id" {
+  secret_id = data.aws_secretsmanager_secret.access_key_id.id
+}
+
+data "aws_secretsmanager_secret_version" "secret_access_key" {
+  secret_id = data.aws_secretsmanager_secret.secret_access_key.id
+}
+
+# _____________________IAM Role and Policies___________________
 resource "aws_iam_role" "apprunner_execution_role" {
   name = "${var.project}-apprunner-exec-role-${random_id.bucket_suffix.hex}"
 
@@ -237,10 +247,32 @@ resource "aws_iam_role" "apprunner_execution_role" {
   }
 }
 
-resource "aws_iam_role_policy_attachment" "apprunner_secrets_access" {
-  role       = aws_iam_role.apprunner_execution_role.name
-  policy_arn = "arn:aws:iam::aws:policy/SecretsManagerReadWrite"
+resource "aws_iam_role_policy" "apprunner_secrets_access" {
+  name = "apprunner-secrets-access"
+  role = aws_iam_role.apprunner_execution_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ],
+        Effect = "Allow",
+        Resource = [
+          data.aws_secretsmanager_secret.access_key_id.arn,
+          data.aws_secretsmanager_secret.secret_access_key.arn
+        ]
+      }
+    ]
+  })
 }
+
+#resource "aws_iam_role_policy_attachment" "apprunner_secrets_access" {
+#  role       = aws_iam_role.apprunner_execution_role.name
+#  policy_arn = "arn:aws:iam::aws:policy/SecretsManagerReadWrite"
+#}
 
 resource "aws_iam_role_policy_attachment" "apprunner_s3_access" {
   role       = aws_iam_role.apprunner_execution_role.name
@@ -284,8 +316,9 @@ resource "aws_apprunner_service" "backend_service" {
             DB_SSL            = "true"
             AWS_REGION        = var.region
             S3_BUCKET_NAME  = aws_s3_bucket.s3_bucket.bucket
-            AWS_ACCESS_KEY_ID     = data.aws_secretsmanager_secret.access_key_id.arn
-            AWS_SECRET_ACCESS_KEY = data.aws_secretsmanager_secret.secret_access_key.arn
+          runtime_environment_secrets = {
+            AWS_ACCESS_KEY_ID     = "${data.aws_secretsmanager_secret.access_key_id.arn}:ACCESS_KEY_ID::"
+            AWS_SECRET_ACCESS_KEY = "${data.aws_secretsmanager_secret.secret_access_key.arn}:SECRET_ACCESS_KEY::"
             }
         }
       }
