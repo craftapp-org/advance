@@ -316,10 +316,8 @@ resource "aws_apprunner_service" "backend_service" {
             DB_SSL            = "true"
             AWS_REGION        = var.region
             S3_BUCKET_NAME  = aws_s3_bucket.s3_bucket.bucket
-            }
-            runtime_environment_secrets = {
-              AWS_ACCESS_KEY_ID     = data.aws_secretsmanager_secret.access_key_id.arn
-              AWS_SECRET_ACCESS_KEY = data.aws_secretsmanager_secret.secret_access_key.arn
+            AWS_ACCESS_KEY_ID     = data.aws_secretsmanager_secret_version.access_key_id.secret_string
+            AWS_SECRET_ACCESS_KEY = data.aws_secretsmanager_secret_version.secret_access_key.secret_string
             }
         }
       }
