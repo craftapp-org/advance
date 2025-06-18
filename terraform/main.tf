@@ -351,7 +351,6 @@ resource "aws_apprunner_service" "backend_service" {
     aws_cloudfront_distribution.cdn,
     aws_s3_bucket.s3_bucket,
     aws_db_instance.my_database,
-    aws_iam_role_policy_attachment.apprunner_secrets_access,
     aws_iam_role_policy_attachment.apprunner_s3_access
   ]
 }
