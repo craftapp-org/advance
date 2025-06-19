@@ -6,6 +6,7 @@ on:
     - 'terraform/**'
     - '.github/workflows/deploy-infrastructure.yml'
 
+
 jobs:
   terraform:
     runs-on: ubuntu-latest
