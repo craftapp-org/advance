@@ -172,3 +172,16 @@ async def get_presigned_url(filename: str):
         ExpiresIn=3600  # URL expires in 1 hour
     )
     return {"url": url}
+
+@app.get("/api/check-test-data")
+async def check_test_data():
+    conn = await connect_db()
+    if conn is None:
+        return {"error": "Database connection failed"}
+    try:
+        rows = await conn.fetch("SELECT * FROM test_table;")
+        await conn.close()
+        return {"data": [dict(row) for row in rows]}
+    except Exception as e:
+        await conn.close()
+        return {"error": f"Query failed: {str(e)}"}
