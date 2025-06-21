@@ -10,6 +10,11 @@ variable "AWS_SECRET_ACCESS_KEY" {
   sensitive   = true
 }
 
+variable "ec2_security_group_id" {
+  type        = string
+  default     = "sg-002621f46d582b78d"
+  description = "Ec2 security group ID for accessing RDS database"
+}
 variable "region" {
   type        = string
   default     = "us-east-1"
