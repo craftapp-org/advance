@@ -172,6 +172,14 @@ data "aws_security_group" "default" {
   vpc_id = "vpc-0297cd44f118eae2f"  # Replace with your actual VPC ID
 }
 
+resource "aws_security_group_rule" "allow_postgres_from_ec2" {
+  type                     = "ingress"
+  from_port                = 5432
+  to_port                  = 5432
+  protocol                 = "tcp"
+  security_group_id        = data.aws_security_group.default.id        # <-- RDS SG
+  source_security_group_id = var.ec2_security_group_id  # <-- your EC2 SG ID
+}
 resource "aws_db_instance" "my_database" {
   identifier             = "${var.project}-${var.region}-database-${random_id.bucket_suffix.hex}"
   engine                 = "postgres"
