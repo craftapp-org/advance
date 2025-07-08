@@ -1,0 +1,68 @@
+name: Destroy Advance Infrastructure
+
+
+on:
+  push:
+    branches: [ "master" ]
+    paths:
+    - '.github/workflows/destroy-advance-infrastructure.yml'
+
+env:
+  AWS_DEFAULT_REGION: "us-east-1"
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-north-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Terraform Init
+        run: terraform -chdir=terraform init -input=false
+
+      - name: Get Parameters from SSM
+        id: get-parameters
+        run: |
+          S3_BUCKET=$(aws ssm get-parameter --name "/app/s3-bucket" --query "Parameter.Value" --output text)
+          CF_ID=$(aws ssm get-parameter --name "/app/cf-id" --query "Parameter.Value" --output text)
+          APPRUNNER_URL=$(aws ssm get-parameter --name "/app/apprunner_url" --query "Parameter.Value" --output text)
+          
+          echo "s3_bucket=$S3_BUCKET" >> $GITHUB_OUTPUT
+          echo "cf_id=$CF_ID" >> $GITHUB_OUTPUT
+          echo "apprunner_url=$APPRUNNER_URL" >> $GITHUB_OUTPUT
+
+      - name: Empty S3 Bucket
+        run: |
+          aws s3 rm s3://${{ steps.get-parameters.outputs.s3_bucket }} --recursive
+
+      - name: Invalidate CloudFront Cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ steps.get-parameters.outputs.cf_id }} \
+            --paths "/*"
+
+      - name: Terraform Destroy
+        run: |
+          terraform -chdir=terraform destroy \
+            -auto-approve \
+            -input=false
+        env:
+          TF_VAR_AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          TF_VAR_AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Clean up SSM Parameters
+        run: |
+          aws ssm delete-parameter --name "/app/s3-bucket" || true
+          aws ssm delete-parameter --name "/app/cf-id" || true
+          aws ssm delete-parameter --name "/app/cloudfront_url" || true
+          aws ssm delete-parameter --name "/app/apprunner_url" || true
