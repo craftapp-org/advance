@@ -118,6 +118,26 @@ resource "aws_iam_policy" "backend_s3_access" {
     ]
   })
 }
+# Create the CloudFront function
+resource "aws_cloudfront_function" "append_html_extension" {
+  name    = "AppendHtmlExtension"
+  runtime = "cloudfront-js-1.0"
+  comment = "Appends .html extension to requests for Next.js static export"
+  publish = true
+  code    = <<EOF
+function handler(event) {
+    var request = event.request;
+    var uri = request.uri;
+
+    // If uri does not contain a '.' (no extension) and does not end with '/'
+    if (!uri.includes('.') && !uri.endsWith('/')) {
+        request.uri = uri + '.html';
+    }
+    return request;
+}
+EOF
+}
+
 # _____________________Creating CloudFront Distribution___________________
 
 resource "aws_cloudfront_distribution" "cdn" {
@@ -149,6 +169,12 @@ resource "aws_cloudfront_distribution" "cdn" {
     min_ttl                = 0
     default_ttl            = 3600
     max_ttl                = 86400
+    
+    # Add function association
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.append_html_extension.arn
+    }
   }
 
   restrictions {
@@ -160,8 +186,14 @@ resource "aws_cloudfront_distribution" "cdn" {
   viewer_certificate {
     cloudfront_default_certificate = true
   }
+  
+  tags = {
+    Name        = "${var.project}-${var.region}-bucket-${random_id.bucket_suffix.hex}"
+  }
+  
   depends_on = [
     aws_s3_bucket.s3_bucket,
+    aws_cloudfront_function.append_html_extension
   ]
 }
 
