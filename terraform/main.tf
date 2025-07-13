@@ -193,11 +193,9 @@ resource "aws_cloudfront_distribution" "cdn" {
     cloudfront_default_certificate = true
   }
   
-  tags = merge(
-    {
-      Name = "${var.project}-${var.region}-cdn-distribution"
-    },
-    var.common_tags
+  tags = {
+    Name        = "${var.project}-cloudfront-${random_id.bucket_suffix.hex}-cdn-distributio"
+    Project     = var.project
   )
   
   depends_on = [
