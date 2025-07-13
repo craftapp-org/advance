@@ -120,7 +120,7 @@ resource "aws_iam_policy" "backend_s3_access" {
 }
 # Create the CloudFront function with lifecycle management
 resource "aws_cloudfront_function" "append_html_extension" {
-  name    = "AppendHtmlExtension"
+  name    = "AppendHtmlExtension"  # Must match existing function name exactly
   runtime = "cloudfront-js-1.0"
   comment = "Appends .html extension to requests for Next.js static export"
   publish = true
@@ -128,8 +128,6 @@ resource "aws_cloudfront_function" "append_html_extension" {
 function handler(event) {
     var request = event.request;
     var uri = request.uri;
-
-    // If uri does not contain a '.' (no extension) and does not end with '/'
     if (!uri.includes('.') && !uri.endsWith('/')) {
         request.uri = uri + '.html';
     }
@@ -138,15 +136,12 @@ function handler(event) {
 EOF
 
   lifecycle {
-    # Prevent accidental deletion of the function
-    prevent_destroy = true
-    
-    # Ignore changes to the code if you want manual updates outside Terraform
-    # ignore_changes = [code]
+    # Prevent Terraform from trying to manage the function code
+    ignore_changes = [code]
   }
 }
 
-# CloudFront Distribution with enhanced tags
+# ----------------------------------CloudFront Distribution-------------------------------------------------
 resource "aws_cloudfront_distribution" "cdn" {
   origin {
     domain_name = aws_s3_bucket.s3_bucket.bucket_regional_domain_name
