@@ -130,7 +130,7 @@ resource "aws_cloudfront_function" "append_html_extension" {
 
   lifecycle {
     # Prevent Terraform from modifying the existing function
-    ignore_changes = [code, comment, publish]
+    ignore_changes = all
   }
 }
 
