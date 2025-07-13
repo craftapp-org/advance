@@ -118,7 +118,7 @@ resource "aws_iam_policy" "backend_s3_access" {
     ]
   })
 }
-# Create the CloudFront function
+# Create the CloudFront function with lifecycle management
 resource "aws_cloudfront_function" "append_html_extension" {
   name    = "AppendHtmlExtension"
   runtime = "cloudfront-js-1.0"
@@ -136,10 +136,17 @@ function handler(event) {
     return request;
 }
 EOF
+
+  lifecycle {
+    # Prevent accidental deletion of the function
+    prevent_destroy = true
+    
+    # Ignore changes to the code if you want manual updates outside Terraform
+    # ignore_changes = [code]
+  }
 }
 
-# _____________________Creating CloudFront Distribution___________________
-
+# CloudFront Distribution with enhanced tags
 resource "aws_cloudfront_distribution" "cdn" {
   origin {
     domain_name = aws_s3_bucket.s3_bucket.bucket_regional_domain_name
@@ -170,7 +177,6 @@ resource "aws_cloudfront_distribution" "cdn" {
     default_ttl            = 3600
     max_ttl                = 86400
     
-    # Add function association
     function_association {
       event_type   = "viewer-request"
       function_arn = aws_cloudfront_function.append_html_extension.arn
@@ -187,9 +193,12 @@ resource "aws_cloudfront_distribution" "cdn" {
     cloudfront_default_certificate = true
   }
   
-  tags = {
-    Name        = "${var.project}-${var.region}-bucket-${random_id.bucket_suffix.hex}"
-  }
+  tags = merge(
+    {
+      Name = "${var.project}-${var.region}-cdn-distribution"
+    },
+    var.common_tags
+  )
   
   depends_on = [
     aws_s3_bucket.s3_bucket,
