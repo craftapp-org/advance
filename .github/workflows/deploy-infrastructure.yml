@@ -28,6 +28,14 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
+      - name: Import CloudFront Function
+        run: |
+          terraform -chdir=terraform import aws_cloudfront_function.append_html_extension AppendHtmlExtension || echo "Import failed (may already exist), continuing..."
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        continue-on-error: true
+
       - name: Terraform Plan
         run: |
           terraform -chdir=terraform plan \
