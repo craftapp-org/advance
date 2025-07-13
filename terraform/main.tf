@@ -120,17 +120,23 @@ resource "aws_iam_policy" "backend_s3_access" {
 }
 # Create the CloudFront function with lifecycle management
 resource "aws_cloudfront_function" "append_html_extension" {
-  name    = "AppendHtmlExtension" # Must match EXACT existing name
+  name    = "AppendHtmlExtension-${random_id.bucket_suffix.hex}"
   runtime = "cloudfront-js-1.0"
-  
-  # These attributes will be ignored after import
-  comment = "Managed by Terraform" 
-  publish = false
-  code    = "// Empty - real code exists in AWS"
+  comment = "Appends .html extension to requests"
+  publish = true
+  code    = <<EOF
+function handler(event) {
+    var request = event.request;
+    var uri = request.uri;
+    if (!uri.includes('.') && !uri.endsWith('/')) {
+        request.uri = uri + '.html';
+    }
+    return request;
+}
+EOF
 
   lifecycle {
-    # Prevent Terraform from modifying the existing function
-    ignore_changes = all
+    create_before_destroy = true
   }
 }
 
