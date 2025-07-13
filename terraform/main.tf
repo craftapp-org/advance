@@ -196,7 +196,7 @@ resource "aws_cloudfront_distribution" "cdn" {
   tags = {
     Name        = "${var.project}-cloudfront-${random_id.bucket_suffix.hex}-cdn-distributio"
     Project     = var.project
-  )
+  }
   
   depends_on = [
     aws_s3_bucket.s3_bucket,
