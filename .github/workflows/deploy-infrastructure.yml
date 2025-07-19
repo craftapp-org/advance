@@ -15,6 +15,7 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: "eu-north-1"
+      PROJECT_id: "234sdfsd"
 
     steps:
       - uses: actions/checkout@v4
@@ -58,10 +59,10 @@ jobs:
 
           echo "Stored S3 Bucket: $S3_BUCKET"
           echo "Stored CloudFront ID: $CF_ID"
-          aws ssm put-parameter --name "/app/s3-bucket" --value "$S3_BUCKET" --type String --overwrite
-          aws ssm put-parameter --name "/app/cf-id" --value "$CF_ID" --type String --overwrite
-          aws ssm put-parameter --name "/app/cloudfront_url" --value "$CLOUDFRONT_URL" --type String --overwrite
-          aws ssm put-parameter --name "/app/apprunner_url" --value "$APPRUNNER_URL" --type String --overwrite
+          aws ssm put-parameter --name "/app/${PROJECT_id}/s3-bucket" --value "$S3_BUCKET" --type String --overwrite
+          aws ssm put-parameter --name "/app/${PROJECT_id}/cf-id" --value "$CF_ID" --type String --overwrite
+          aws ssm put-parameter --name "/app/${PROJECT_id}/cloudfront_url" --value "$CLOUDFRONT_URL" --type String --overwrite
+          aws ssm put-parameter --name "/app/${PROJECT_id}/apprunner_url" --value "$APPRUNNER_URL" --type String --overwrite
           echo "Stored S3 Bucket: $S3_BUCKET"
           echo "Stored CloudFront ID: $CF_ID"
           echo "Stored CloudFront URL: $CLOUDFRONT_URL"
