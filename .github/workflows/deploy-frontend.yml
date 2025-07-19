@@ -15,6 +15,7 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: "eu-north-1"
+      PROJECT_id: "234sdfsd"
 
     steps:
       - uses: actions/checkout@v4
@@ -22,9 +23,9 @@ jobs:
       - name: Get SSM Parameters
         id: ssm
         run: |
-          echo "S3_BUCKET=$(aws ssm get-parameter --name '/app/s3-bucket' --query 'Parameter.Value' --output text)" >> $GITHUB_ENV
-          echo "CF_ID=$(aws ssm get-parameter --name '/app/cf-id' --query 'Parameter.Value' --output text)" >> $GITHUB_ENV
-          echo "APPRUNNER_URL=$(aws ssm get-parameter --name '/app/apprunner_url' --query 'Parameter.Value' --output text)" >> $GITHUB_ENV
+          echo "S3_BUCKET=$(aws ssm get-parameter --name '/app/${PROJECT_id}/s3-bucket' --query 'Parameter.Value' --output text)" >> $GITHUB_ENV
+          echo "CF_ID=$(aws ssm get-parameter --name '/app/${PROJECT_id}/cf-id' --query 'Parameter.Value' --output text)" >> $GITHUB_ENV
+          echo "APPRUNNER_URL=$(aws ssm get-parameter --name '/app/${PROJECT_id}/apprunner_url' --query 'Parameter.Value' --output text)" >> $GITHUB_ENV
 
       - name: Debug Terraform Outputs
         run: |
