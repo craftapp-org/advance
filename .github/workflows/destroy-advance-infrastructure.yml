@@ -9,6 +9,7 @@ on:
 
 env:
   AWS_DEFAULT_REGION: "us-east-1"
+  PORJECT_id: "234sdfsd"
 
 jobs:
   destroy:
@@ -33,9 +34,9 @@ jobs:
       - name: Get Parameters from SSM
         id: get-parameters
         run: |
-          S3_BUCKET=$(aws ssm get-parameter --name "/app/s3-bucket" --query "Parameter.Value" --output text)
-          CF_ID=$(aws ssm get-parameter --name "/app/cf-id" --query "Parameter.Value" --output text)
-          APPRUNNER_URL=$(aws ssm get-parameter --name "/app/apprunner_url" --query "Parameter.Value" --output text)
+          S3_BUCKET=$(aws ssm get-parameter --name "/app/${PORJECT_id}/s3-bucket" --query "Parameter.Value" --output text)
+          CF_ID=$(aws ssm get-parameter --name "/app/${PORJECT_id}/cf-id" --query "Parameter.Value" --output text)
+          APPRUNNER_URL=$(aws ssm get-parameter --name "/app/${PORJECT_id}/apprunner_url" --query "Parameter.Value" --output text)
           
           echo "s3_bucket=$S3_BUCKET" >> $GITHUB_OUTPUT
           echo "cf_id=$CF_ID" >> $GITHUB_OUTPUT
@@ -62,7 +63,7 @@ jobs:
 
       - name: Clean up SSM Parameters
         run: |
-          aws ssm delete-parameter --name "/app/s3-bucket" || true
-          aws ssm delete-parameter --name "/app/cf-id" || true
-          aws ssm delete-parameter --name "/app/cloudfront_url" || true
-          aws ssm delete-parameter --name "/app/apprunner_url" || true
+          aws ssm delete-parameter --name "/app/${PORJECT_id}/s3-bucket" || true
+          aws ssm delete-parameter --name "/app/${PORJECT_id}/cf-id" || true
+          aws ssm delete-parameter --name "/app/${PORJECT_id}/cloudfront_url" || true
+          aws ssm delete-parameter --name "/app/${PORJECT_id}/apprunner_url" || true
